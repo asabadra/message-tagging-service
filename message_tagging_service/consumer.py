@@ -30,35 +30,6 @@ from message_tagging_service.utils import read_rule_defs
 logger = logging.getLogger(__name__)
 
 
-class UMBMessage(object):
-    """Representing a message received from rhmsg message bus
-
-    :param msg: the message object received from underlying rhmsg message bus.
-    :type msg: ``proton.Message``
-    """
-
-    def __init__(self, msg):
-        self._orig_msg = msg
-        self._body = json.loads(msg.body)
-
-    @property
-    def id(self):
-        return self._orig_msg.id
-
-    @property
-    def topic(self):
-        return self._orig_msg.address
-
-    @property
-    def body(self):
-        return self._body
-
-    def __repr__(self):
-        return "{}(id={}, topic={}, body={})".format(
-            self.__class__.__name__, repr(self.id), repr(self.topic), repr(self.body)
-        )
-
-
 class KafkaMessage(object):
     """Representing a message consumed from Kafka service
 
@@ -148,40 +119,6 @@ def fedora_messaging_backend():
     api.consume(consume)
 
 
-def rhmsg_backend():
-    """Launch consumer backend based on rhmsg to consume message from UMB"""
-    from rhmsg.activemq.consumer import AMQConsumer
-
-    def _consumer_wrapper(msg, data=None):
-        """Wrap UMB message in a message object
-
-        fedora-messaging passes a message object rather than a raw dict into
-        consumer function, but rhmsg does pass a dict instead. This wrapper
-        makes it easier to handle message in a unified way in function
-        ``consume``.
-
-        :param msg: a proton.Message object represeting received message.
-        :param data: any data passed from caller calling ``consumer.consume``.
-        """
-        logger.debug('Received message: %r', msg)
-        try:
-            consume(UMBMessage(msg))
-        except json.JSONDecodeError as e:
-            logger.error(f'Cannot decode message body: {msg.body}')
-            logger.error(f'Reason: {str(e)}')
-
-    consumer = AMQConsumer(
-        urls=conf.rhmsg_brokers,
-        certificate=conf.rhmsg_certificate,
-        private_key=conf.rhmsg_private_key,
-        trusted_certificates=conf.rhmsg_ca_cert,
-    )
-
-    consumer.consume(
-        conf.rhmsg_queue, callback=_consumer_wrapper,
-        subscription_name=conf.rhmsg_subscription_name)
-
-
 def kafka_backend():
     """Launch consumer backend based on kafka-python to consume from Kafka
 
@@ -229,9 +166,7 @@ def run():
 
     Config file has config to indicate which consumer backend to run.
     """
-    if conf.messaging_backend == 'rhmsg':
-        rhmsg_backend()
-    elif conf.messaging_backend == 'fedora-messaging':
+    if conf.messaging_backend == 'fedora-messaging':
         fedora_messaging_backend()
     elif conf.messaging_backend == 'kafka':
         kafka_backend()

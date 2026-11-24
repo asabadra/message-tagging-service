@@ -30,46 +30,8 @@ from mock import patch, Mock
 from message_tagging_service.consumer import run
 from message_tagging_service import conf, consumer
 
-try:
-    import rhmsg
-except ImportError:
-    rhmsg = None
-
 
 test_data_dir = os.path.join(os.path.dirname(__file__), 'data')
-
-
-class Container(object):
-    """
-    Fake proton.Container to just call on_message in order to test the consume
-    callback function.
-    """
-
-    def __init__(self, handler):
-        self.handler = handler
-
-    def run(self):
-        event = Mock()
-        self.handler.on_message(event)
-
-
-class ReceiverHandler(object):
-    """Fake ReceiverHandler in order to call consumer.consume function"""
-
-    fake_msg_body = ''
-
-    def __init__(self, urls, address, callback, **kwargs):
-        self.callback = callback
-        self.result = Mock()
-
-    def on_message(self, event):
-        import proton
-        fake_msg = proton.Message(
-            body=ReceiverHandler.fake_msg_body,
-            id='msg-id-01',
-            address='topic://VirtualTopic.eng.app.event',
-        )
-        self.callback(fake_msg, data=None)
 
 
 class FakeKafkaRecord(object):
@@ -116,49 +78,34 @@ class TestConsumer(object):
     """Test consumer method is able to handle two different type of messages
 
     There are two types of messages, one is coming from fedora-messaging, and
-    another one is coming UMB.
+    another one is coming from Kafka.
     """
 
-    @pytest.mark.skipif(rhmsg is None, reason='rhmsg is not installed.')
-    # Test code working with rhmsg library
-    @patch.object(conf, 'messaging_backend', new='rhmsg')
-    # Patch rhmsg to not connect broker actually and just call the consume
-    # callback inside on_message event.
-    @patch('rhmsg.activemq.consumer.ReceiverHandler', new=ReceiverHandler)
-    @patch('rhmsg.activemq.consumer.Container', new=Container)
-    @patch('rhmsg.activemq.consumer.SSLDomain')
-    @patch.object(consumer.tagging_service, 'handle')
-    @patch('requests.get')
-    def test_skip_if_rule_file_is_empty(self, get, handle, SSLDomain):
-        ReceiverHandler.fake_msg_body = json.dumps({}).encode()
-        get.return_value.text = '---'
-        run()
-        handle.assert_not_called()
-
-    @pytest.mark.skipif(rhmsg is None, reason='rhmsg is not installed.')
-    @patch.object(conf, 'messaging_backend', new='rhmsg')
-    @patch('rhmsg.activemq.consumer.ReceiverHandler', new=ReceiverHandler)
-    @patch('rhmsg.activemq.consumer.Container', new=Container)
-    @patch('rhmsg.activemq.consumer.SSLDomain')
+    @patch.object(conf, 'messaging_backend', new='kafka')
     @patch('message_tagging_service.consumer.tagging_service.handle')
     @patch('requests.get')
-    def test_handle_umb_message(self, get, handle, SSLDomain):
-        mbs_event_msg = {
-            'name': 'python',
-            'stream': '2.7',
-            'version': '1',
-            'context': 'c1',
-        }
-        ReceiverHandler.fake_msg_body = json.dumps(mbs_event_msg).encode()
+    def test_skip_if_rule_file_is_empty(self, get, handle):
+        """An empty rule file must not reach the tagging service
 
-        with open(os.path.join(test_data_dir, 'mts-test-rules.yaml'), 'r') as f:
-            rules_content = f.read()
-        get.return_value.text = rules_content
+        yaml.safe_load returns None for an empty document, which ``consume``
+        has to treat as "no rules are defined" rather than passing None on to
+        tagging_service.handle.
+        """
+        FakeKafkaConsumer.records = [
+            FakeKafkaRecord(json.dumps({
+                'name': 'python',
+                'stream': '2.7',
+                'version': '1',
+                'context': 'c1',
+                'state_name': 'ready',
+            }).encode())
+        ]
+        get.return_value.text = '---'
 
-        run()
+        with patch.dict('sys.modules', {'kafka': _fake_kafka_module()}):
+            run()
 
-        handle.assert_called_once_with(
-            yaml.safe_load(rules_content), mbs_event_msg)
+        handle.assert_not_called()
 
     @pytest.mark.parametrize('msg_body', [{
         'name': 'python',
@@ -187,19 +134,6 @@ class TestConsumer(object):
         else:
             # In case event message is empty, MTS stops handling the message.
             handle.assert_not_called()
-
-    @pytest.mark.skipif(rhmsg is None, reason='rhmsg is not installed.')
-    def test_umb_message(self):
-        from message_tagging_service.consumer import UMBMessage
-        import proton
-        msg = UMBMessage(proton.Message(
-            body=json.dumps({'name': 'modulea'}),
-            id='msg-id-01',
-            address='topic://VirtualTopic.event',
-        ))
-        assert 'msg-id-01' == msg.id
-        assert {'name': 'modulea'} == msg.body
-        assert 'topic://VirtualTopic.event' == msg.topic
 
     @patch.object(conf, 'messaging_backend', new='kafka')
     @patch('message_tagging_service.consumer.tagging_service.handle')
@@ -361,27 +295,6 @@ class TestConsumer(object):
             assert "Failed to handle message" in args[0]
             args, _ = logger.info.call_args
             assert 'Continue to handle next MBS message ...' == args[0]
-
-    @pytest.mark.skipif(rhmsg is None, reason='rhmsg is not installed.')
-    @patch.object(conf, 'messaging_backend', new='rhmsg')
-    @patch('rhmsg.activemq.consumer.ReceiverHandler', new=ReceiverHandler)
-    @patch('rhmsg.activemq.consumer.Container', new=Container)
-    @patch('rhmsg.activemq.consumer.SSLDomain')
-    @patch('message_tagging_service.consumer.tagging_service.handle')
-    @patch('requests.get')
-    def test_log_error_if_umb_message_body_is_invalid(self, get, handle, SSLDomain):
-        with open(os.path.join(test_data_dir, 'mts-test-rules.yaml'), 'r') as f:
-            rules_content = f.read()
-        get.return_value.text = rules_content
-        ReceiverHandler.fake_msg_body = 'non-JSON message body'
-
-        with patch.object(consumer, 'logger') as logger:
-            run()
-
-            args, _ = logger.error.call_args_list[0]
-            assert 'Cannot decode message body: non-JSON message body' == args[0]
-            args, _ = logger.error.call_args_list[1]
-            assert args[0].startswith('Reason:')
 
     def test_ignore_scratch_build(self):
         msg = fedora_messaging.api.Message(body={'name': 'modulea', 'scratch': True})

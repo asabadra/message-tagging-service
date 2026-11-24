@@ -29,27 +29,8 @@ class BaseConfiguration:
 
     # Please note that, no specific config for fedora-messaging is defined here.
     # Instead, refer to mts.toml for the complete configuration.
-    # Set this to rhmsg for interacting with UMB.
+    # Set this to kafka to consume from and publish to a Kafka cluster.
     messaging_backend = 'fedora-messaging'
-
-    # Broker URIs to connect, e.g. ['amqps://host:5671', 'amqps://anotherhost:5671']
-    rhmsg_brokers = []
-    # Absolute path to certificate file used to authenticate MTS
-    rhmsg_certificate = ''
-    # Absolute path to private key file used to authenticate MTS
-    rhmsg_private_key = ''
-    # Absolute path to trusted CA certificate bundle.
-    rhmsg_ca_cert = ''
-    # topic like build.tag.requested is passed to publish function to
-    # generalize the messaging publish interface. For rhmsg, this
-    # topic_prefix is used to construct full topic in order to send message.
-    rhmsg_topic_prefix = 'VirtualTopic.eng.mts'
-    # Queue name to receive message from. For example:
-    # Consumer.client-mts.queue.VirtualTopic.eng.mbs.module.state.change
-    rhmsg_queue = 'Consumer.client-mts.queue.VirtualTopic.eng.mbs.module.state.change'
-    # The name used to identify unique subscriptions. Set this to a unique value
-    # to enable durable messages.
-    rhmsg_subscription_name = None
 
     # Kafka bootstrap servers to connect to. When using SCRAM-SHA-512 over
     # SASL_SSL, connect on port 9096, e.g.

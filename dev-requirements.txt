@@ -105,7 +105,6 @@ cffi==1.16.0 \
     # via
     #   -r requirements.txt
     #   cryptography
-    #   python-qpid-proton
 charset-normalizer==3.3.2 \
     --hash=sha256:06435b539f889b1f6f4ac1758871aae42dc3a8c0e24ac9e60c2384973ad73027 \
     --hash=sha256:06a81e93cd441c56a9b65d8e1d043daeb97a3d0856d177d5c90ba85acb3db087 \
@@ -732,11 +731,6 @@ python-dateutil==2.9.0.post0 \
     # via
     #   -r requirements.txt
     #   koji
-python-qpid-proton==0.39.0 \
-    --hash=sha256:362055ae6ab4c7f1437247c602757f30328d55c0a6986d5b68ca9798de9fce02 \
-    --hash=sha256:d052e85ffbc817d4db973fae230d8a80732d444e0abbac55360ad4beb181cb43 \
-    --hash=sha256:f69da296ffa9e3b22f88a53fe9e27c4f4844e088a9f041061bd4f75f74f2a0af
-    # via -r requirements.txt
 pyyaml==6.0.1 \
     --hash=sha256:04ac92ad1925b2cff1db0cfebffb6ffc43457495c9b3c39d3fcae417d7125dc5 \
     --hash=sha256:062582fca9fabdd2c8b54a3ef1c978d786e0f6b3a1510e0ac93ef59e0ddae2bc \

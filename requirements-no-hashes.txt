@@ -20,9 +20,7 @@ blinker==1.8.2
 certifi==2024.7.4
     # via requests
 cffi==1.16.0
-    # via
-    #   cryptography
-    #   python-qpid-proton
+    # via cryptography
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
@@ -94,8 +92,6 @@ pyopenssl==24.1.0
     # via fedora-messaging
 python-dateutil==2.9.0.post0
     # via koji
-python-qpid-proton==0.39.0
-    # via -r requirements.in
 pyyaml==6.0.1
     # via -r requirements.in
 referencing==0.35.1

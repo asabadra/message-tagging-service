@@ -60,36 +60,6 @@ def _fedora_messaging_publish(topic, msg):
         api.publish(fm_msg)
 
 
-def _rhmsg_publish(topic, msg):
-    """Send message to Unified Message Bus
-
-    :param str topic: the topic where message will be sent to, e.g.
-        ``build.tagged``.
-    :param dict msg: the message that will be sent.
-    """
-    import proton
-    from rhmsg.activemq.producer import AMQProducer
-
-    producer_config = {
-        'urls': conf.rhmsg_brokers,
-        'certificate': conf.rhmsg_certificate,
-        'private_key': conf.rhmsg_private_key,
-        'trusted_certificates': conf.rhmsg_ca_cert,
-    }
-    with AMQProducer(**producer_config) as producer:
-        topic = f'{conf.rhmsg_topic_prefix.rstrip(".")}.{topic}'
-        producer.through_topic(topic)
-
-        outgoing_msg = proton.Message()
-        outgoing_msg.body = json.dumps(msg)
-        if conf.dry_run:
-            logger.info('DRY-RUN: AMQProducer.send(%s) through topic %s',
-                        outgoing_msg, topic)
-        else:
-            logger.debug('Send message: %s', outgoing_msg)
-            producer.send(outgoing_msg)
-
-
 def kafka_client_config():
     """Build common connection kwargs for KafkaProducer and KafkaConsumer.
 
@@ -155,9 +125,6 @@ def _kafka_publish(topic, msg):
 _messaging_backends = {
     'fedora-messaging': {
         'publish': _fedora_messaging_publish
-    },
-    'rhmsg': {
-        'publish': _rhmsg_publish
     },
     'kafka': {
         'publish': _kafka_publish

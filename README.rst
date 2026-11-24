@@ -75,15 +75,16 @@ messaging broker.
 Messaging Backend
 ~~~~~~~~~~~~~~~~~~
 
-MTS supports three messaging backends, selected by the ``messaging_backend``
+MTS supports two messaging backends, selected by the ``messaging_backend``
 config value:
 
 * ``fedora-messaging`` (default) -- Fedora infra RabbitMQ, configured via
   ``conf/mts.toml``.
-* ``rhmsg`` -- Internal Unified Message Bus (UMB), configured via the
-  ``rhmsg_*`` config values.
 * ``kafka`` -- Kafka service, configured via the ``kafka_*``
   config values.
+
+The ``rhmsg`` backend, which spoke to the internal Unified Message Bus over
+AMQP 1.0, was removed once UMB was retired in favour of Kafka.
 
 Messaging
 ---------
@@ -138,9 +139,6 @@ Topic Prefix
 
 For Fedora, messages are sent to topics with prefix ``org.fedoraproject.prod``,
 e.g. ``org.fedoraproject.prod.mts.build.tag.requested``.
-
-For internal UMB (``rhmsg``), the prefix is ``VirtualTopic.eng.mts``, e.g.
-``VirtualTopic.eng.mts.build.tag.requested``.
 
 For Kafka, the prefix is ``eng.mts``, e.g. ``eng.mts.build.tag.requested``.
 
