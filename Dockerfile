@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:39
+FROM registry.fedoraproject.org/fedora:45
 
 LABEL maintainer="Factory 2 Team" \
       description="A microservice triggered by specific message to tag a build." \
@@ -6,7 +6,13 @@ LABEL maintainer="Factory 2 Team" \
 
 RUN sed -i '/default_ccache_name = KEYRING:persistent:%{uid}/d' /etc/krb5.conf
 
-RUN chmod 777 /etc/pki/tls/certs/ca-bundle.crt
+# Fedora 44 dropped the /etc/pki/tls/certs/ca-bundle.crt compatibility symlink,
+# so address the extracted bundle directly. docker/install-ca.sh appends to
+# this same file at run time, which is why it has to be group/world writable:
+# the container runs as an arbitrary non-root uid and cannot use
+# update-ca-trust.
+ENV CA_BUNDLE=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+RUN chmod 666 $CA_BUNDLE
 
 WORKDIR /src
 

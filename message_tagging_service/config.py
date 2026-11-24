@@ -21,6 +21,7 @@
 
 
 import importlib.machinery
+import importlib.util
 import os
 import sys
 
@@ -133,8 +134,13 @@ class Config:
         """
         if not config_file:
             config_file = self.get_config_file(profile=profile)
+        # Loader.load_module() was removed in Python 3.15, so build the module
+        # from a spec instead. This is the documented replacement and works on
+        # every Python version this service supports.
         loader = importlib.machinery.SourceFileLoader('mts_conf', config_file)
-        mod = loader.load_module()
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
         if not config_class:
             config_class = self.get_config_class_name()
         if getattr(mod, config_class, None) is not None:

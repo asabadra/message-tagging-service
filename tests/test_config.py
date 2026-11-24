@@ -49,22 +49,23 @@ class TestConfig(object):
 
     @patch.dict('os.environ', clear=True)
     @patch.object(config, 'running_tests', new=False)
+    @patch('importlib.util')
     @patch('importlib.machinery')
-    def test_use_installed_config(self, machinery):
+    def test_use_installed_config(self, machinery, util):
         conf = config.Config()
 
         machinery.SourceFileLoader.assert_called_once_with(
             'mts_conf',
             '/etc/mts/config.py')
 
-        loader = machinery.SourceFileLoader.return_value
-        mod = loader.load_module.return_value
+        mod = util.module_from_spec.return_value
         assert conf.conf_class == mod.BaseConfiguration
 
     @patch.dict('os.environ', clear=True)
     @patch.object(config, 'running_tests', new=False)
+    @patch('importlib.util')
     @patch('importlib.machinery')
-    def test_config_profile(self, machinery):
+    def test_config_profile(self, machinery, util):
         profile_name = 'abc123'
         conf = config.Config(profile=profile_name)
 
@@ -72,8 +73,7 @@ class TestConfig(object):
             'mts_conf',
             f'/etc/mts/config.{profile_name}.py')
 
-        loader = machinery.SourceFileLoader.return_value
-        mod = loader.load_module.return_value
+        mod = util.module_from_spec.return_value
         assert conf.conf_class == mod.BaseConfiguration
 
     @patch.dict('os.environ', values={'MTS_CONFIG_FILE': test_config})
