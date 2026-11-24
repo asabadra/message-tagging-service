@@ -1,0 +1,72 @@
+name: Container image
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  REGISTRY: quay.io
+  IMAGE: factory2/message-tagging-service
+
+permissions:
+  contents: read
+
+jobs:
+  # Build on every pull request so a broken Dockerfile is caught before merge.
+  # This job never sees the registry credentials: GitHub does not expose
+  # secrets to pull_request runs from forks, and nothing here needs them.
+  build:
+    name: Build image
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE }}:pr-${{ github.event.pull_request.number || 'manual' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Push only from master, i.e. only after review and merge. The environment
+  # gate means the credentials are reachable from this job alone, and can be
+  # given required reviewers in the repository settings.
+  push:
+    name: Build and push image
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    environment: quay
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ${{ env.REGISTRY }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # latest keeps the tag the deployment already tracks; the commit sha
+          # gives every build an immutable tag to roll back to.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
